@@ -1,0 +1,35 @@
+Small demo based on https://github.com/nextauthjs/next-auth-example demonstrating a refresh problem we face.
+
+
+Install:
+
+a) npm install
+b) create a .env.local with:
+NEXTAUTH_URL=http://localhost:3001
+NEXTAUTH_SECRET=3ec635dd8c7bce6790eeabe8d348abee5e9f82cc6650711eacc2cbd4935cfbee
+c) npm run dev -- -p 3001
+d) open http://localhost:3001 in your browser and check you see a home screen with a top-right signin button
+
+
+Reproduce the problem:
+
+1) sign in (filling username/password fields unnecessary)
+
+2) click on the SSR link after 10 seconds from login (so that access
+   token expired), logs show:
+
+current access token expired on 1646822124490, pretend successful API refresh using refresh token dummy_refresh_token
+new access token expiration 1646822185388
+awaited getSession, access token is now: refreshed_access_token
+
+3) click back and click on the SSR link again (no waiting necessary), logs show:
+
+current access token expired on 1646822124490, pretend successful API refresh using refresh token dummy_refresh_token
+new access token expiration 1646822197936
+awaited getSession, access token is now: refreshed_access_token
+
+=> demonstrating the fact the old access and refresh tokens are used,
+not the refreshed ones on step 2
+
+FWIW, investigation shows browser does not receive any updated session
+cookie at step 2, but I did not find why.

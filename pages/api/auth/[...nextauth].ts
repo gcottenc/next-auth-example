@@ -1,63 +1,54 @@
 import NextAuth from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
-import FacebookProvider from "next-auth/providers/facebook"
-import GithubProvider from "next-auth/providers/github"
-import TwitterProvider from "next-auth/providers/twitter"
-import Auth0Provider from "next-auth/providers/auth0"
-// import AppleProvider from "next-auth/providers/apple"
-// import EmailProvider from "next-auth/providers/email"
+import CredentialsProvider from "next-auth/providers/credentials"
 
 // For more information on each option (and a full list of options) go to
 // https://next-auth.js.org/configuration/options
 export default NextAuth({
   // https://next-auth.js.org/configuration/providers/oauth
   providers: [
-    /* EmailProvider({
-         server: process.env.EMAIL_SERVER,
-         from: process.env.EMAIL_FROM,
-       }),
-    // Temporarily removing the Apple provider from the demo site as the
-    // callback URL for it needs updating due to Vercel changing domains
-      
-    Providers.Apple({
-      clientId: process.env.APPLE_ID,
-      clientSecret: {
-        appleId: process.env.APPLE_ID,
-        teamId: process.env.APPLE_TEAM_ID,
-        privateKey: process.env.APPLE_PRIVATE_KEY,
-        keyId: process.env.APPLE_KEY_ID,
+    CredentialsProvider({
+      id: "credentials",
+      name: "dummy_provider",
+      credentials: {
+        username: { label: "Username", type: "username" },
+        password: { label: "Password", type: "password" }
       },
-    }),
-    */
-    FacebookProvider({
-      clientId: process.env.FACEBOOK_ID,
-      clientSecret: process.env.FACEBOOK_SECRET,
-    }),
-    GithubProvider({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET,
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_SECRET,
-    }),
-    TwitterProvider({
-      clientId: process.env.TWITTER_ID,
-      clientSecret: process.env.TWITTER_SECRET,
-    }),
-    Auth0Provider({
-      clientId: process.env.AUTH0_ID,
-      clientSecret: process.env.AUTH0_SECRET,
-      issuer: process.env.AUTH0_ISSUER,
+      async authorize(credentials, req) {
+        console.log("pretend successful API authorization")
+        return {access_token: "dummy_access_token", expires_in: 10, refresh_token: "dummy_refresh_token"};
+      },
     }),
   ],
   theme: {
     colorScheme: "light",
   },
   callbacks: {
-    async jwt({ token }) {
-      token.userRole = "admin"
-      return token
+    async jwt({token, user, account}) {
+      if (account && user) {
+        console.log("new session (successful login), creating complete token")
+        return {
+          accessToken: user?.access_token,
+          refreshToken: user?.refresh_token,
+          accessTokenExpires: Date.now() + user?.expires_in * 1000,
+        }
+      } else if (Date.now() < token.accessTokenExpires) {
+        console.log("current access token still valid")
+        return token
+      } else {
+        console.log("current access token expired on " + token.accessTokenExpires + ", pretend successful API refresh using refresh token " + token.refreshToken)
+        var newExpiration = Date.now() + 10 * 1000
+        console.log("new access token expiration " + newExpiration)
+        return {
+          accessToken: "refreshed_access_token",
+          refreshToken: "refreshed_refresh_token",
+          accessTokenExpires: newExpiration,
+        }
+      }
     },
+    async session({session, token}) {
+      session.accessToken = token.accessToken
+      return session
+    },
+
   },
 })
